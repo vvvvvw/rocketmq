@@ -59,6 +59,9 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     /**
      * Wrapping internal implementations for virtually all methods presented in this class.
      */
+    /**
+     * 发送者的具体实现
+     */
     protected final transient DefaultMQProducerImpl defaultMQProducerImpl;
 
     /**
@@ -71,15 +74,27 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      *
      * See {@linktourl http://rocketmq.apache.org/docs/core-concept/} for more discussion.
      */
+    /**
+     * 生产者组名
+     */
     private String producerGroup;
 
     /**
      * Just for testing or demo program
      */
+    /**
+     * 如果没有创建主题，自动创建
+     */
     private String createTopicKey = MixAll.DEFAULT_TOPIC;
 
     /**
+     * 每个topic 在每台broker上创建的默认队列数量
+     */
+    /**
      * Number of queues to create per default topic.
+     */
+    /**
+     *
      */
     private volatile int defaultTopicQueueNums = 4;
 
@@ -90,6 +105,9 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
 
     /**
      * Compress message body threshold, namely, message body larger than 4k will be compressed on default.
+     */
+    /**
+     * 消息发送超过4k压缩
      */
     private int compressMsgBodyOverHowmuch = 1024 * 4;
 
@@ -116,6 +134,9 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
 
     /**
      * Maximum allowed message size in bytes.
+     */
+    /**
+     * 默认最大消息大小
      */
     private int maxMessageSize = 1024 * 1024 * 4; // 4M
 

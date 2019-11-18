@@ -59,6 +59,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.when;
 
+//生产者 用例
 @RunWith(MockitoJUnitRunner.class)
 public class DefaultMQProducerTest {
     @Spy
@@ -72,6 +73,7 @@ public class DefaultMQProducerTest {
     private String topic = "FooBar";
     private String producerGroupPrefix = "FooBar_PID";
 
+    //测试初始化
     @Before
     public void init() throws Exception {
         String producerGroupTemp = producerGroupPrefix + System.currentTimeMillis();
@@ -99,6 +101,7 @@ public class DefaultMQProducerTest {
             .thenReturn(createSendResult(SendStatus.SEND_OK));
     }
 
+    //测试关闭
     @After
     public void terminate() {
         producer.shutdown();

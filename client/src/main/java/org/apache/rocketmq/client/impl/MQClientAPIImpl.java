@@ -225,6 +225,9 @@ public class MQClientAPIImpl {
         this.remotingClient.updateNameServerAddressList(lst);
     }
 
+    /**
+     * 启动netty客户端
+     */
     public void start() {
         this.remotingClient.start();
     }

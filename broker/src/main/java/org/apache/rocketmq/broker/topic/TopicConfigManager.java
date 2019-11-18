@@ -154,6 +154,7 @@ public class TopicConfigManager extends ConfigManager {
                     if (topicConfig != null)
                         return topicConfig;
 
+                    //如果topic没有创建，又打开了自动创建topic的开关，根据默认topic的config来生成新的topic的config
                     TopicConfig defaultTopicConfig = this.topicConfigTable.get(defaultTopic);
                     if (defaultTopicConfig != null) {
                         if (defaultTopic.equals(MixAll.DEFAULT_TOPIC)) {
