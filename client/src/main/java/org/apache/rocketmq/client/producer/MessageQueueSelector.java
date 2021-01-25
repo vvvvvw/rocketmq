@@ -21,5 +21,9 @@ import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.common.message.MessageQueue;
 
 public interface MessageQueueSelector {
+    /**
+     * @param mqs 接收一个List<MessageQueue>类型参数，也就是当前Topic下的队列集合
+     * @return
+     */
     MessageQueue select(final List<MessageQueue> mqs, final Message msg, final Object arg);
 }

@@ -18,7 +18,9 @@ package org.apache.rocketmq.remoting.netty;
 
 public class NettyServerConfig implements Cloneable {
     private int listenPort = 8888;
+    //如果业务类型没有注册用来处理的线程池，则默认使用本线程池(根据业务类型会创建不同的线程池，比如处理消息发送、消息消费、心跳检测等。 )
     private int serverWorkerThreads = 8;
+    //如果该业务类型（RequestCode）注册的时候没有传递线程池， 则使用 public 线程池执行
     private int serverCallbackExecutorThreads = 0;
     private int serverSelectorThreads = 3;
     private int serverOnewaySemaphoreValue = 256;

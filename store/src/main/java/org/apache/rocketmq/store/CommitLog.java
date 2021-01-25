@@ -49,6 +49,7 @@ public class CommitLog {
     // End of file empty MAGIC CODE cbd43194
     protected final static int BLANK_MAGIC_CODE = -875286124;
     protected final MappedFileQueue mappedFileQueue;
+    ////存储耗时相关的metric：可以存储这些指标，上传给监控系统
     protected final DefaultMessageStore defaultMessageStore;
     private final FlushCommitLogService flushCommitLogService;
 
@@ -57,6 +58,7 @@ public class CommitLog {
 
     private final AppendMessageCallback appendMessageCallback;
     private final ThreadLocal<MessageExtBatchEncoder> batchEncoderThreadLocal;
+    // offset是逻辑偏移量(也就是第几个消息)
     protected HashMap<String/* topic-queueid */, Long/* offset */> topicQueueTable = new HashMap<String, Long>(1024);
     protected volatile long confirmOffset = -1L;
 
@@ -542,18 +544,19 @@ public class CommitLog {
         // Back to Results
         AppendMessageResult result = null;
 
-        //存储耗时相关的metric：可以存储这些指标，上传给监控系统
+        //统计服务：可以存储这些指标，上传给监控系统
         StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
 
         String topic = msg.getTopic();
         int queueId = msg.getQueueId();
 
-        //处理延时消息(定时消息)
         final int tranType = MessageSysFlag.getTransactionValue(msg.getSysFlag());
+        //处理延时消息(定时消息)(如果不是事务消息或者是事务commit消息)
         if (tranType == MessageSysFlag.TRANSACTION_NOT_TYPE
             || tranType == MessageSysFlag.TRANSACTION_COMMIT_TYPE) {
             // Delay Delivery
             if (msg.getDelayTimeLevel() > 0) {
+                //格式化
                 if (msg.getDelayTimeLevel() > this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel()) {
                     msg.setDelayTimeLevel(this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel());
                 }
@@ -598,8 +601,10 @@ public class CommitLog {
             //将broker内部的这个message刷新到mappedfile的内存，还没有刷盘
             result = mappedFile.appendMessage(msg, this.appendMessageCallback);
             switch (result.getStatus()) {
+                //追加成功
                 case PUT_OK:
                     break;
+                    //END_OF FILE
                 case END_OF_FILE:
                     unlockMappedFile = mappedFile;
                     // Create a new file, re-write the message
@@ -612,10 +617,13 @@ public class CommitLog {
                     }
                     result = mappedFile.appendMessage(msg, this.appendMessageCallback);
                     break;
+                    //消息长度超过最大允许长度
+                  //消息、属性超过最大允许长度
                 case MESSAGE_SIZE_EXCEEDED:
                 case PROPERTIES_SIZE_EXCEEDED:
                     beginTimeInLock = 0;
                     return new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, result);
+                    //未知异常
                 case UNKNOWN_ERROR:
                     beginTimeInLock = 0;
                     return new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result);
@@ -1102,6 +1110,7 @@ public class CommitLog {
                         // There may be a message in the next file, so a maximum of
                         // two times the flush
                         boolean flushOK = false;
+                        //可能新消息在 另一个文件，重试一次
                         for (int i = 0; i < 2 && !flushOK; i++) {
                             flushOK = CommitLog.this.mappedFileQueue.getFlushedWhere() >= req.getNextOffset();
 
@@ -1266,7 +1275,7 @@ public class CommitLog {
             //判断当前commitlog文件是否有足够的可用空间
             //maxBlank：当前commitlog文件（对应的mappedfile）的剩余空间
             //一个消息不能跨域两个commitlog
-            //每个commitlog文件需要确保预留8个字节表示commitlog的文件结尾
+            //每个commitlog文件需要确保预留8个字节表示commitlog的文件结尾(不一定，如果剩余空间不够8个字节的话)
             // Determines whether there is sufficient free space
             if ((msgLen + END_FILE_MIN_BLANK_LENGTH) > maxBlank) {
                 this.resetByteBuffer(this.msgStoreItemMemory, maxBlank);
@@ -1277,6 +1286,7 @@ public class CommitLog {
                 // 3 The remaining space may be any value
                 // Here the length of the specially set maxBlank
                 final long beginTimeMills = CommitLog.this.defaultMessageStore.now();
+                //todo 这个地方如果只剩一个字节的可用空间，怎么处理
                 byteBuffer.put(this.msgStoreItemMemory.array(), 0, maxBlank);
                 return new AppendMessageResult(AppendMessageStatus.END_OF_FILE, wroteOffset, maxBlank, msgId, msgInner.getStoreTimestamp(),
                     queueOffset, CommitLog.this.defaultMessageStore.now() - beginTimeMills);
@@ -1338,6 +1348,7 @@ public class CommitLog {
                 case MessageSysFlag.TRANSACTION_PREPARED_TYPE:
                 case MessageSysFlag.TRANSACTION_ROLLBACK_TYPE:
                     break;
+                    //更新逻辑偏移量
                 case MessageSysFlag.TRANSACTION_NOT_TYPE:
                 case MessageSysFlag.TRANSACTION_COMMIT_TYPE:
                     // The next update ConsumeQueue information

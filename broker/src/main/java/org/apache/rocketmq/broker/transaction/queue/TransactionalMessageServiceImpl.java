@@ -117,6 +117,9 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
         }
     }
 
+    //事务的过期时间 只有当消息的存储时间加上过期时间大于系统 当前时间时，才对消息执行事务状态回查，否则在下一次周期中执行事务回查操作。
+    //事务回查最大检测次数，如果超过最大检测次数还是无法获知 消息的事务状态， RocketMQ 将不会继续对消息进行事务状态回查，
+    // 而是直接丢弃即相当于 回滚事务
     @Override
     public void check(long transactionTimeout, int transactionCheckMax,
         AbstractTransactionalMessageCheckListener listener) {
@@ -125,13 +128,16 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
             Set<MessageQueue> msgQueues = transactionalMessageBridge.fetchMessageQueues(topic);
             if (msgQueues == null || msgQueues.size() == 0) {
                 log.warn("The queue of topic is empty :" + topic);
+                
                 return;
             }
             log.debug("Check topic={}, queues={}", topic, msgQueues);
             for (MessageQueue messageQueue : msgQueues) {
                 long startTime = System.currentTimeMillis();
                 MessageQueue opQueue = getOpQueue(messageQueue);
+                //获取 半事务的消费位点
                 long halfOffset = transactionalMessageBridge.fetchConsumeOffset(messageQueue);
+                //获取 事务op的消费位点
                 long opOffset = transactionalMessageBridge.fetchConsumeOffset(opQueue);
                 log.info("Before check, the queue={} msgOffset={} opOffset={}", messageQueue, halfOffset, opOffset);
                 if (halfOffset < 0 || opOffset < 0) {

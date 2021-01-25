@@ -61,6 +61,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
     private final BlockingQueue<Runnable> consumeRequestQueue;
     private final ThreadPoolExecutor consumeExecutor;
     private final String consumerGroup;
+    //消息消费端消息、消费队列锁容器，内部持有锁
     private final MessageQueueLock messageQueueLock = new MessageQueueLock();
     private final ScheduledExecutorService scheduledExecutorService;
     private volatile boolean stopped = false;
@@ -86,6 +87,8 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
     }
 
     public void start() {
+        //如果消费模式为集群模式，启动定时任务，默认每隔 20s 执行一次锁定分配给自 己的 消息消费队列。 通过
+        // －Drocketmq. client.rebalance. locklnterval=20000 设置间隔，该值建议与 一次消息负载频率设置相同。
         if (MessageModel.CLUSTERING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())) {
             this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
                 @Override
@@ -350,6 +353,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
             for (MessageExt msg : msgs) {
                 if (msg.getReconsumeTimes() >= getMaxReconsumeTimes()) {
                     MessageAccessor.setReconsumeTime(msg, String.valueOf(msg.getReconsumeTimes()));
+                    //如果没有把 消费失败的message写回去(写回失败)，则重新消费(不管已经消费的次数)
                     if (!sendMessageBack(msg)) {
                         suspend = true;
                         msg.setReconsumeTimes(msg.getReconsumeTimes() + 1);
@@ -417,6 +421,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                 return;
             }
 
+            //：根据消息队列获取一个对象。 然后消息消费时先申请独占 objLock。 顺序消息 消费的并发度为消息队列。 也就是一个消息消费队列同一时刻只会被一个消费线程池中一 个线程消费
             final Object objLock = messageQueueLock.fetchLockObject(this.messageQueue);
             synchronized (objLock) {
                 if (MessageModel.BROADCASTING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())

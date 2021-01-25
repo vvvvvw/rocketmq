@@ -259,6 +259,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
 
         switch (status) {
             case CONSUME_SUCCESS:
+                //，如果返回 CONSUME_SUCCESS, acklndex 设置为 msgs.size（）
                 if (ackIndex >= consumeRequest.getMsgs().size()) {
                     ackIndex = consumeRequest.getMsgs().size() - 1;
                 }
@@ -267,6 +268,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
                 this.getConsumerStatsManager().incConsumeOKTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), ok);
                 this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), failed);
                 break;
+                //如果返回 RECONSUME_LATER, acklndex=-1 ， 这是为下文发送 msg back (ACK）消息做准备的。
             case RECONSUME_LATER:
                 ackIndex = -1;
                 this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(),

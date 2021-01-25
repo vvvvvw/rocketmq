@@ -43,7 +43,9 @@ public class MappedFileQueue {
 
     private final AllocateMappedFileService allocateMappedFileService;
 
+    //当前刷盘指针， 表示该指针之前的所有数据全部持久化到磁盘
     private long flushedWhere = 0;
+    // 当前数据提交指针，内存中 ByteBuffer 当前的写指针， 该值大于等于 flushedWhere
     private long committedWhere = 0;
 
     private volatile long storeTimestamp = 0;
@@ -74,6 +76,8 @@ public class MappedFileQueue {
         }
     }
 
+    //根据消息存储时间戳来查找 MappdFile。 从 MappedFile 列表中第一个文件开始查找， 找到第一个最后一次更新时间大于待查找时间戳的文件，
+    //如果不存在，则返回最后一个 MappedFile 文件
     public MappedFile getMappedFileByTime(final long timestamp) {
         Object[] mfs = this.copyMappedFiles(0);
 
@@ -195,7 +199,9 @@ public class MappedFileQueue {
         long createOffset = -1;
         MappedFile mappedFileLast = getLastMappedFile();
 
+        //计算偏移量(如果要创建新文件的话(未创建过对应文件或者最新的mappedFile已经满了))
         if (mappedFileLast == null) {
+            //计算需要创建的文件的第一个消息的偏移量
             createOffset = startOffset - (startOffset % this.mappedFileSize);
         }
 
@@ -210,6 +216,7 @@ public class MappedFileQueue {
             MappedFile mappedFile = null;
 
             if (this.allocateMappedFileService != null) {
+                //todo 这个是什么
                 mappedFile = this.allocateMappedFileService.putRequestAndReturnMappedFile(nextFilePath,
                     nextNextFilePath, this.mappedFileSize);
             } else {
@@ -285,6 +292,7 @@ public class MappedFileQueue {
         return true;
     }
 
+    //获取存储文件最小偏移量，从这里也可以看出，并不是直接返回 0，而是返回 MappedFile 的 getFileFormOffset（）。
     public long getMinOffset() {
 
         if (!this.mappedFiles.isEmpty()) {
@@ -299,6 +307,7 @@ public class MappedFileQueue {
         return -1;
     }
 
+    //获取存储文件的最大读偏移量。 返回最后一个 MappedFile 文件的 fileFromOffset 加上 MappedFile 文件当前的写指针
     public long getMaxOffset() {
         MappedFile mappedFile = getLastMappedFile();
         if (mappedFile != null) {
@@ -307,6 +316,7 @@ public class MappedFileQueue {
         return 0;
     }
 
+    //返回存储文件当前的写指针。 返回最后一个文件的 fileF rom Offset 加上当前写指针位置。
     public long getMaxWrotePosition() {
         MappedFile mappedFile = getLastMappedFile();
         if (mappedFile != null) {
@@ -443,6 +453,7 @@ public class MappedFileQueue {
         boolean result = true;
         MappedFile mappedFile = this.findMappedFileByOffset(this.committedWhere, this.committedWhere == 0);
         if (mappedFile != null) {
+
             int offset = mappedFile.commit(commitLeastPages);
             long where = mappedFile.getFileFromOffset() + offset;
             result = where == this.committedWhere;
@@ -459,6 +470,7 @@ public class MappedFileQueue {
      * @param returnFirstOnNotFound If the mapped file is not found, then return the first one.
      * @return Mapped file or null (when not found and returnFirstOnNotFound is <code>false</code>).
      */
+    //根据消息偏移量 offset 查找 MappedFile
     public MappedFile findMappedFileByOffset(final long offset, final boolean returnFirstOnNotFound) {
         try {
             MappedFile firstMappedFile = this.getFirstMappedFile();

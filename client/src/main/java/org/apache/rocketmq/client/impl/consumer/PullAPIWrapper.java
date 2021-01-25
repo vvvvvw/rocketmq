@@ -174,6 +174,7 @@ public class PullAPIWrapper {
             }
             int sysFlagInner = sysFlag;
 
+            //如果是从slave拉取
             if (findBrokerResult.isSlave()) {
                 sysFlagInner = PullSysFlag.clearCommitOffsetFlag(sysFlagInner);
             }

@@ -132,6 +132,7 @@ public class RouteInfoManager {
                 //Switch slave to master: first remove <1, IP:PORT> in namesrv, then add <0, IP:PORT>
                 //The same IP:PORT must only have one record in brokerAddrTable
                 Iterator<Entry<Long, String>> it = brokerAddrsMap.entrySet().iterator();
+                //todo 如果brokerId变化，则删除原来的并重新添加到 brokerAddrsMap中
                 while (it.hasNext()) {
                     Entry<Long, String> item = it.next();
                     if (null != brokerAddr && brokerAddr.equals(item.getValue()) && brokerId != item.getKey()) {
@@ -140,10 +141,13 @@ public class RouteInfoManager {
                 }
 
                 String oldAddr = brokerData.getBrokerAddrs().put(brokerId, brokerAddr);
+                //如果是第一次注册或者 第一次使用该brokerId注册
                 registerFirst = registerFirst || (null == oldAddr);
 
                 if (null != topicConfigWrapper
                     && MixAll.MASTER_ID == brokerId) {
+                    //如果 Broker 为 Master，并且
+                    // Broker Topic 配置信息发生变化或者是初次注册， 则需要创建或更新 Topic 路由元数据，填充 topicQueueTable
                     if (this.isBrokerTopicConfigChanged(brokerAddr, topicConfigWrapper.getDataVersion())
                         || registerFirst) {
                         ConcurrentMap<String, TopicConfig> tcTable =
@@ -156,6 +160,7 @@ public class RouteInfoManager {
                     }
                 }
 
+                //更新BrokeLivelnfo
                 BrokerLiveInfo prevBrokerLiveInfo = this.brokerLiveTable.put(brokerAddr,
                     new BrokerLiveInfo(
                         System.currentTimeMillis(),

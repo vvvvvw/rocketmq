@@ -161,6 +161,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             return response;
         }
 
+        //根据消息物理偏移量从 commitlog 文件中获取消息， 同时将消息的主题存入属性中。
         MessageExt msgExt = this.brokerController.getMessageStore().lookMessageByOffset(requestHeader.getOffset());
         if (null == msgExt) {
             response.setCode(ResponseCode.SYSTEM_ERROR);
@@ -183,6 +184,8 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
         if (msgExt.getReconsumeTimes() >= maxReconsumeTimes
             || delayLevel < 0) {
+            //设置消息重试次数， 如果消息已重试次数超过 maxReconsumeTimes，再次改变 newTopic 主题为 DLQ （”%DLQ%”），
+            // 该主题的权限为只写，说明消息一旦进入到 DLQ 队 列中， RocketMQ 将不负责再次调度进行消费了， 需要人工干预
             newTopic = MixAll.getDLQTopic(requestHeader.getGroup());
             queueIdInt = Math.abs(this.random.nextInt() % 99999999) % DLQ_NUMS_PER_GROUP;
 
@@ -202,7 +205,8 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
             msgExt.setDelayTimeLevel(delayLevel);
         }
-
+        //根据原先的消息创建一个新的消息对象，重试消息会拥有自 己 的唯一消息 ID ( msgld）并存人到 commitlog 文件中，
+        // 并不会去更新原先消息， 而是会将原先的主题、 消息 ID 存入消息的属性中 ， 主题名称为重试主题， 其他属性与原先消息保持相同。
         MessageExtBrokerInner msgInner = new MessageExtBrokerInner();
         msgInner.setTopic(newTopic);
         msgInner.setBody(msgExt.getBody());
@@ -216,6 +220,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         msgInner.setBornTimestamp(msgExt.getBornTimestamp());
         msgInner.setBornHost(msgExt.getBornHost());
         msgInner.setStoreHost(this.getStoreHost());
+        //重试次数+1
         msgInner.setReconsumeTimes(msgExt.getReconsumeTimes() + 1);
 
         String originMsgId = MessageAccessor.getOriginMessageId(msgExt);

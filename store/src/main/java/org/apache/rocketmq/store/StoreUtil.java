@@ -20,6 +20,8 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
 
 public class StoreUtil {
+    //RocketMQ 所在服务器总内存大小。 accessMessagelnMemory MaxRatio表示 RocketMQ 所能使用的最大内存比例，
+    // 超过该内存，消息 将被置换出内存； memory 表示 RocketMQ 消息常驻内存的大小，超过该大小， RocketMQ 会将旧的消息置换回磁盘
     public static final long TOTAL_PHYSICAL_MEMORY_SIZE = getTotalPhysicalMemorySize();
 
     @SuppressWarnings("restriction")

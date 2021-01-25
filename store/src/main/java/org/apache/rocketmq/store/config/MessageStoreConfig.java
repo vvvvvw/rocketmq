@@ -32,7 +32,7 @@ public class MessageStoreConfig {
 
     // CommitLog file size,default is 1G
     private int mappedFileSizeCommitLog = 1024 * 1024 * 1024;
-    // ConsumeQueue file size,default is 30W
+    // ConsumeQueue file size,default is 30W 条
     private int mappedFileSizeConsumeQueue = 300000 * ConsumeQueue.CQ_STORE_UNIT_SIZE;
     // enable consume queue ext
     private boolean enableConsumeQueueExt = false;
@@ -89,12 +89,14 @@ public class MessageStoreConfig {
     // How many pages are to be flushed when flush CommitLog
     private int flushCommitLogLeastPages = 4;
     // How many pages are to be committed when commit data to file
+    //每次至少commit的页面数(默认4页)，如果待提交数据不满 commitLeastPages，则不执行本次提交操作，待下次提交。
     private int commitCommitLogLeastPages = 4;
     // Flush page size when the disk in warming state
     private int flushLeastPagesWhenWarmMapedFile = 1024 / 4 * 16;
     // How many pages are to be flushed when flush ConsumeQueue
     private int flushConsumeQueueLeastPages = 2;
     private int flushCommitLogThoroughInterval = 1000 * 10;
+    //上一次提交(上一次不需要是完全提交)到现在隔多久，会完全提交一次
     private int commitCommitLogThoroughInterval = 200;
     private int flushConsumeQueueThoroughInterval = 1000 * 60;
     @ImportantField
@@ -106,6 +108,8 @@ public class MessageStoreConfig {
     @ImportantField
     private int maxTransferCountOnMessageInDisk = 8;
     @ImportantField
+    //RocketMQ 所能使用的最大内存比例，
+    //超过该内存，消息 将被置换出内存； memory 表示 RocketMQ 消息常驻内存的大小，超过该大小， RocketMQ 会将旧的消息置换回磁盘
     private int accessMessageInMemoryMaxRatio = 40;
     @ImportantField
     private boolean messageIndexEnable = true;
@@ -139,6 +143,7 @@ public class MessageStoreConfig {
     private int defaultQueryMaxNum = 32;
 
     @ImportantField
+    //是否异步刷盘
     private boolean transientStorePoolEnable = false;
     private int transientStorePoolSize = 5;
     private boolean fastFailIfNoBufferInStorePool = false;

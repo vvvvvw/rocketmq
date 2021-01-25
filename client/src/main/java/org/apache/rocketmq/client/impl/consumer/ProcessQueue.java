@@ -44,6 +44,7 @@ public class ProcessQueue {
     private final static long PULL_MAX_IDLE_TIME = Long.parseLong(System.getProperty("rocketmq.client.pull.pullMaxIdleTime", "120000"));
     private final InternalLogger log = ClientLogger.getLog();
     private final ReadWriteLock lockTreeMap = new ReentrantReadWriteLock();
+    //Map<offset,MessageExt>
     private final TreeMap<Long, MessageExt> msgTreeMap = new TreeMap<Long, MessageExt>();
     private final AtomicLong msgCount = new AtomicLong();
     private final AtomicLong msgSize = new AtomicLong();
@@ -51,6 +52,7 @@ public class ProcessQueue {
     /**
      * A subset of msgTreeMap, will only be used when orderly consume
      */
+    //顺序消息消费时，从 ProceessQueue 中 取出的消息，会临时存储在 ProceeQueue 的 consumingMsgOrderlyTreeMap 属性中。
     private final TreeMap<Long, MessageExt> consumingMsgOrderlyTreeMap = new TreeMap<Long, MessageExt>();
     private final AtomicLong tryUnlockTimes = new AtomicLong(0);
     private volatile long queueOffsetMax = 0L;
@@ -181,6 +183,12 @@ public class ProcessQueue {
         return 0;
     }
 
+    //从 ProcessQueue 中移除这批消息， 这里返回的偏移量是移除该批消息后最小的偏移量，然后用该偏移量更新消息消费进度 ，
+    // 以便在消费者重启后能从上一次的消费进度开始消费，避免消息重复消费。 值得重点注意的是当消息监听器返回 RECONSUME LATER，
+    // 消息消费进度也会向前推进，用 ProcessQueue 中最小的队列偏移量调用消息消费
+    //进度存储器 OffsetStore 更新消费进度，这是因为当返回 RECONSUME_LATER, RocketMQ 会创建一条与原先消息属性相同的消息，
+    // 拥有一个唯一的新 msgld，并存储原消息 ID，该 消息会存入到 commitlog 文件中，与原先的消息没有任何关联，
+    // 那该消息当然也会进入到 ConsuemeQueue 队列中，将拥有一个全新的队列偏移量。
     public long removeMessage(final List<MessageExt> msgs) {
         long result = -1;
         final long now = System.currentTimeMillis();
@@ -242,6 +250,7 @@ public class ProcessQueue {
         this.locked = locked;
     }
 
+    //将 msgTreeMapTmp 中所有消息重新放入到 msgTreeMap 并清除 msgTreeMapTmp
     public void rollback() {
         try {
             this.lockTreeMap.writeLock().lockInterruptibly();
@@ -256,6 +265,7 @@ public class ProcessQueue {
         }
     }
 
+    //将 msgTreeMapTmp 中的消息清除，表示成功处理该批消息。
     public long commit() {
         try {
             this.lockTreeMap.writeLock().lockInterruptibly();
@@ -279,6 +289,7 @@ public class ProcessQueue {
         return -1;
     }
 
+    //重新消费该批消息。
     public void makeMessageToCosumeAgain(List<MessageExt> msgs) {
         try {
             this.lockTreeMap.writeLock().lockInterruptibly();
@@ -295,6 +306,7 @@ public class ProcessQueue {
         }
     }
 
+    //从 ProcessQueue 中取出 batchSize 条消息。
     public List<MessageExt> takeMessags(final int batchSize) {
         List<MessageExt> result = new ArrayList<MessageExt>(batchSize);
         final long now = System.currentTimeMillis();

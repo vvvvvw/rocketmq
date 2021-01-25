@@ -522,6 +522,18 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         this.mqFaultStrategy.updateFaultItem(brokerName, currentLatency, isolation);
     }
 
+    /**
+     * 职责：1.选定队列2.调用 sendKernelImpl发送消息
+     * @param msg
+     * @param communicationMode
+     * @param sendCallback
+     * @param timeout 注意超时时间不是每次调用的，如果整个的发送过程(包括重试，如果重试1次就超过超时时间了也会失败，还有路由选择)
+     * @return
+     * @throws MQClientException
+     * @throws RemotingException
+     * @throws MQBrokerException
+     * @throws InterruptedException
+     */
     private SendResult sendDefaultImpl(
         Message msg,
         final CommunicationMode communicationMode,
@@ -531,6 +543,9 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         this.makeSureStateOK();
         Validators.checkMessage(msg, this.defaultMQProducer);
 
+        /**
+         * 这个id只是用来打印日志的
+         */
         final long invokeID = random.nextLong();
         long beginTimestampFirst = System.currentTimeMillis();
         long beginTimestampPrev = beginTimestampFirst;
@@ -556,6 +571,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                             //Reset topic with namespace during resend.
                             msg.setTopic(this.defaultMQProducer.withNamespace(msg.getTopic()));
                         }
+                        //已经消耗的时间(重试会消耗时间)
                         long costTime = beginTimestampPrev - beginTimestampFirst;
                         if (timeout < costTime) {
                             callTimeout = true;
@@ -1091,6 +1107,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         TopicPublishInfo topicPublishInfo = this.tryToFindTopicPublishInfo(msg.getTopic());
         if (topicPublishInfo != null && topicPublishInfo.ok()) {
             MessageQueue mq = null;
+            // 选择将消息发送到哪个队列（Queue）中
             try {
                 List<MessageQueue> messageQueueList =
                     mQClientFactory.getMQAdminImpl().parsePublishMessageQueues(topicPublishInfo.getMessageQueueList());
@@ -1098,6 +1115,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 String userTopic = NamespaceUtil.withoutNamespace(userMessage.getTopic(), mQClientFactory.getClientConfig().getNamespace());
                 userMessage.setTopic(userTopic);
 
+                //选择 发送队列
                 mq = mQClientFactory.getClientConfig().queueWithNamespace(selector.select(messageQueueList, userMessage, arg));
             } catch (Throwable e) {
                 throw new MQClientException("select message queue throwed exception.", e);

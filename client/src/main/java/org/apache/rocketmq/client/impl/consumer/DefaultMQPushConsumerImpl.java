@@ -107,6 +107,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     private volatile boolean pause = false;
     private boolean consumeOrderly = false;
     private MessageListener messageListenerInner;
+    //消费进度保存
     private OffsetStore offsetStore;
     private ConsumeMessageService consumeMessageService;
     private long queueFlowControlTimes = 0;
@@ -404,6 +405,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         boolean commitOffsetEnable = false;
         long commitOffsetValue = 0L;
         if (MessageModel.CLUSTERING == this.defaultMQPushConsumer.getMessageModel()) {
+            //从内存拉取位点
             commitOffsetValue = this.offsetStore.readOffset(pullRequest.getMessageQueue(), ReadOffsetType.READ_FROM_MEMORY);
             if (commitOffsetValue > 0) {
                 commitOffsetEnable = true;
@@ -418,9 +420,11 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                 subExpression = sd.getSubString();
             }
 
+            //是否是类过滤模式
             classFilter = sd.isClassFilterMode();
         }
 
+        //构建消息拉取系统标记
         int sysFlag = PullSysFlag.buildSysFlag(
             commitOffsetEnable, // commitOffset
             true, // suspend

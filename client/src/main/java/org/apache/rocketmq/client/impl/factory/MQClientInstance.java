@@ -342,11 +342,14 @@ public class MQClientInstance {
         return clientId;
     }
 
+    //根据指定的拉取时间间隔，周期性的的从NameServer拉取路由信息
     public void updateTopicRouteInfoFromNameServer() {
+        //需要更新路由信息的topic列表集合
         Set<String> topicList = new HashSet<String>();
 
         // Consumer
         {
+            //添加消费者使用到的topic到集合中
             Iterator<Entry<String, MQConsumerInner>> it = this.consumerTable.entrySet().iterator();
             while (it.hasNext()) {
                 Entry<String, MQConsumerInner> entry = it.next();
@@ -364,6 +367,7 @@ public class MQClientInstance {
 
         // Producer
         {
+            //添加生产者使用到的topic到集合中
             Iterator<Entry<String, MQProducerInner>> it = this.producerTable.entrySet().iterator();
             while (it.hasNext()) {
                 Entry<String, MQProducerInner> entry = it.next();
@@ -375,6 +379,7 @@ public class MQClientInstance {
             }
         }
 
+        //逐一从nameserver中更新每个topic的路由信息
         for (String topic : topicList) {
             this.updateTopicRouteInfoFromNameServer(topic);
         }
@@ -644,7 +649,7 @@ public class MQClientInstance {
                     }
                     if (topicRouteData != null) {
                         TopicRouteData old = this.topicRouteTable.get(topic);
-                        boolean changed = topicRouteDataIsChange(old, topicRouteData);
+                            boolean changed = topicRouteDataIsChange(old, topicRouteData);
                         if (!changed) {
                             changed = this.isNeedUpdateTopicRouteInfo(topic);
                         } else {
@@ -1181,6 +1186,7 @@ public class MQClientInstance {
             return Collections.EMPTY_MAP;
         }
     }
+
 
     public TopicRouteData getAnExistTopicRouteData(final String topic) {
         return this.topicRouteTable.get(topic);

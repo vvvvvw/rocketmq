@@ -136,4 +136,8 @@ public class TopicRouteData extends RemotingSerializable {
         return "TopicRouteData [orderTopicConf=" + orderTopicConf + ", queueDatas=" + queueDatas
             + ", brokerDatas=" + brokerDatas + ", filterServerTable=" + filterServerTable + "]";
     }
+
+    public static void main(String[] args) {
+        System.out.println(int.class.getCanonicalName());
+    }
 }

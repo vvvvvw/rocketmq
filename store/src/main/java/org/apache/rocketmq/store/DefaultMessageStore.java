@@ -76,16 +76,20 @@ public class DefaultMessageStore implements MessageStore {
 
     private final IndexService indexService;
 
+    //MappedFile 分配服务
     private final AllocateMappedFileService allocateMappedFileService;
-
+    //CommitLog 消息分发，根据 CommitLog 文件构建 ConsumeQueue、 IndexFile 文件。
     private final ReputMessageService reputMessageService;
 
+    //存储 HA 机制
     private final HAService haService;
 
+    //消息堆内存缓存
     private final ScheduleMessageService scheduleMessageService;
 
     private final StoreStatsService storeStatsService;
 
+    //消息堆内存缓存
     private final TransientStorePool transientStorePool;
 
     private final RunningFlags runningFlags = new RunningFlags();
@@ -94,15 +98,19 @@ public class DefaultMessageStore implements MessageStore {
     private final ScheduledExecutorService scheduledExecutorService =
         Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl("StoreScheduledThread"));
     private final BrokerStatsManager brokerStatsManager;
+    //消息拉取长轮询模式消息达到 监听器
     private final MessageArrivingListener messageArrivingListener;
+    //Broker 配置属性
     private final BrokerConfig brokerConfig;
 
     private volatile boolean shutdown = true;
 
+    //文件刷盘检测点
     private StoreCheckpoint storeCheckpoint;
 
     private AtomicLong printTimes = new AtomicLong(0);
 
+    //CommitLog 文件转发请求
     private final LinkedList<CommitLogDispatcher> dispatcherList;
 
     private RandomAccessFile lockFile;
@@ -512,6 +520,7 @@ public class DefaultMessageStore implements MessageStore {
 
         GetMessageResult getResult = new GetMessageResult();
 
+        //代表当前主服务器消息存储文件最大偏移量
         final long maxOffsetPy = this.commitLog.getMaxOffset();
 
         ConsumeQueue consumeQueue = findConsumeQueue(topic, queueId);
@@ -542,6 +551,7 @@ public class DefaultMessageStore implements MessageStore {
                         status = GetMessageStatus.NO_MATCHED_MESSAGE;
 
                         long nextPhyFileStartOffset = Long.MIN_VALUE;
+                        //此次拉取消息最大偏移量
                         long maxPhyOffsetPulling = 0;
 
                         int i = 0;
@@ -622,7 +632,11 @@ public class DefaultMessageStore implements MessageStore {
 
                         nextBeginOffset = offset + (i / ConsumeQueue.CQ_STORE_UNIT_SIZE);
 
+                        //对于 Pul!MessageService 线程来说，当前未被拉取到消息消费端的消息长度
                         long diff = maxOffsetPy - maxPhyOffsetPulling;
+                        //RocketMQ 所在服务器总内存大小。 accessMessagelnMemory MaxRatio表示 RocketMQ 所能使用的最大内存比例，
+                        //    // 超过该内存，消息 将被置换出内存； memory 表示 RocketMQ 消息常驻内存的大小，超过该大小， RocketMQ 会将旧的消息置换回磁盘
+                        //）如果 diff大于 memory，表示当前需要拉取的消息已经超出了常驻内存的大小，表示 主服务器繁忙，此时才建议从从服务器拉取。
                         long memory = (long) (StoreUtil.TOTAL_PHYSICAL_MEMORY_SIZE
                             * (this.messageStoreConfig.getAccessMessageInMemoryMaxRatio() / 100.0));
                         getResult.setSuggestPullingFromSlave(diff > memory);

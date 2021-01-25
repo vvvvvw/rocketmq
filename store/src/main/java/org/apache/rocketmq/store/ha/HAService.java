@@ -273,8 +273,13 @@ public class HAService {
             List<CommitLog.GroupCommitRequest> tmp = this.requestsWrite;
             this.requestsWrite = this.requestsRead;
             this.requestsRead = tmp;
+
         }
 
+        //负责当主从同步复制结束后通知由于等待 HA 同步结果 而阻塞的消息发送者线程。 判断主从同步是否完成的依据是 Slave
+        // 中已成功复制的最大偏移 量是否大于等于消息生产者发送消息后消息服务端返回下一条消息的起始偏移量，
+        // 如果是则 表示主从同步复制已经完成，唤醒消息发送线程，否则等待 ls 再次判断，
+        // 每一个任务在一 批任务中循环判断 5 次
         private void doWaitTransfer() {
             synchronized (this.requestsRead) {
                 if (!this.requestsRead.isEmpty()) {
