@@ -72,6 +72,7 @@ public class NamesrvStartup {
         System.setProperty(RemotingCommand.REMOTING_VERSION_KEY, Integer.toString(MQVersion.CURRENT_VERSION));
         //PackageConflictDetect.detectFastjson();
 
+
         Options options = ServerUtil.buildCommandlineOptions(new Options());
         commandLine = ServerUtil.parseCmdLine("mqnamesrv", args, buildCommandlineOptions(options), new PosixParser());
         if (null == commandLine) {
@@ -79,6 +80,8 @@ public class NamesrvStartup {
             return null;
         }
 
+        //1.先创建 NameServerConfig、 NettyServerConfig， 然后在解析启动时把配置文件或启动命令中的的选项
+        //值，填充到 nameServerConfig和nettyServerConfig 参数中
         final NamesrvConfig namesrvConfig = new NamesrvConfig();
         final NettyServerConfig nettyServerConfig = new NettyServerConfig();
         nettyServerConfig.setListenPort(9876);
@@ -143,6 +146,7 @@ public class NamesrvStartup {
             System.exit(-3);
         }
 
+        //注册 JVM 钩子函数并启动服务器， 以便监昕 Broker 、消息生产者的网络请求
         Runtime.getRuntime().addShutdownHook(new ShutdownHookThread(log, new Callable<Void>() {
             @Override
             public Void call() throws Exception {

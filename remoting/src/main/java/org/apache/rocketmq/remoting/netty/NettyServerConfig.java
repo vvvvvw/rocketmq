@@ -17,18 +17,34 @@
 package org.apache.rocketmq.remoting.netty;
 
 public class NettyServerConfig implements Cloneable {
+    //NameServer 监昕端口，该值默认会被初始化为 9876
     private int listenPort = 8888;
-    //如果业务类型没有注册用来处理的线程池，则默认使用本线程池(根据业务类型会创建不同的线程池，比如处理消息发送、消息消费、心跳检测等。 )
+    //Netty 默认业务线程池线程个数，
+    // 如果指定业务类型没有自己注册用来处理的线程池（(不同业务类型可以注册不同的处理器和用来处理的线程池，比如处理消息发送、消息消费、心跳检测等），如果没有注册，则默认使用本线程池
     private int serverWorkerThreads = 8;
-    //如果该业务类型（RequestCode）注册的时候没有传递线程池， 则使用 public 线程池执行
+    //Netty public 线程池线程个数，作用：
+    //1.如果 业务类型（RequestCode）注册的时候没有指定线程池， 则使用 public 线程池执行，和上面默认业务线程池的区别是
+       //1.1 public线程池是在 给指定业务类型调用了注册函数，但是没有传线程池的时候 会默认绑定public线程池
+       //1.2 默认业务线程池是 指定业务类型根本没有调用注册函数的时候（如果是该业务类型的请求过来了，那么会使用默认处理器
+    // （默认处理器中把每个业务类型的处理都实现了）和默认业务线程池来处理这个请求）
+    //2.处理回调的响应消息
     private int serverCallbackExecutorThreads = 0;
+    //Netty IO线程线程个数，这类线程主要是处理网络请求的，解析请求包， 然后转发到
+    //各个业务线程池完成具体的业务操作，然后将结果再返回调用方
     private int serverSelectorThreads = 3;
+    //send oneway 消息请求井发度（ Broker 端参数）
     private int serverOnewaySemaphoreValue = 256;
+    //异步消息发送最大并发度（ Broker 端参数）
     private int serverAsyncSemaphoreValue = 64;
+    //网络连接最大空闲时间，默认 120s 如果连接
+    //空闲时间超过该参数设置的值，连接将被关闭
     private int serverChannelMaxIdleTimeSeconds = 120;
 
+    //socket 发送缓存区大小， 默认 64k
     private int serverSocketSndBufSize = NettySystemConfig.socketSndbufSize;
+    // socket 接收缓存区大 ，默认 4k
     private int serverSocketRcvBufSize = NettySystemConfig.socketRcvbufSize;
+    //ByteBuffer 是否开 缓存 ，建议开启
     private boolean serverPooledByteBufAllocatorEnable = true;
 
     /**
@@ -38,6 +54,7 @@ public class NettyServerConfig implements Cloneable {
      * ../glibc-2.10.1/configure \ --prefix=/usr \ --with-headers=/usr/include \
      * --host=x86_64-linux-gnu \ --build=x86_64-pc-linux-gnu \ --without-gd
      */
+    //是否启用 poll IO 模型， Linux 环境建议开启
     private boolean useEpollNativeSelector = false;
 
     public int getListenPort() {

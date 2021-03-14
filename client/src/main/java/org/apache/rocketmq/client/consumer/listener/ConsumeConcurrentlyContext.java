@@ -29,7 +29,7 @@ public class ConsumeConcurrentlyContext {
      * 0,broker control retry frequency<br>
      * >0,client control retry frequency
      */
-    //为0 表示不用重试；为-1表示放入死信队列；大于0 则由 客户端控制重试频率
+    //为0 表示 延迟级别为（3+重试次数）；为-1表示放入死信队列；大于0 则由 客户端控制重试频率，延迟级别完全根据delayLevelWhenNextConsume
     private int delayLevelWhenNextConsume = 0;
     private int ackIndex = Integer.MAX_VALUE;
 

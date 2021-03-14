@@ -59,16 +59,16 @@ public class ExpressionMessageFilter implements MessageFilter {
 
     @Override
     public boolean isMatchedByConsumeQueue(Long tagsCode, ConsumeQueueExt.CqExtUnit cqExtUnit) {
-        if (null == subscriptionData) {
+        if (null == subscriptionData) { //如果订阅消息为空，返回 true ，不过滤
             return true;
         }
 
-        if (subscriptionData.isClassFilterMode()) {
+        if (subscriptionData.isClassFilterMode()) {//如果是类过滤模式，返回 true
             return true;
         }
 
         // by tags code.
-        if (ExpressionType.isTagType(subscriptionData.getExpressionType())) {
+        if (ExpressionType.isTagType(subscriptionData.getExpressionType())) {  //如果是 TAG过滤模式，并且消息的 tagsCode 为空或 tagsCode 小于0 ，返回 true ，说明消息在发送时没有设置 tag
 
             if (tagsCode == null) {
                 return true;
@@ -78,7 +78,7 @@ public class ExpressionMessageFilter implements MessageFilter {
                 return true;
             }
 
-            return subscriptionData.getCodeSet().contains(tagsCode.intValue());
+            return subscriptionData.getCodeSet().contains(tagsCode.intValue()); //如果订阅消息的 TAG hashcodes 集合中包含消息的 tag sCode ，返回 true
         } else {
             // no expression or no bloom
             if (consumerFilterData == null || consumerFilterData.getExpression() == null
@@ -114,29 +114,31 @@ public class ExpressionMessageFilter implements MessageFilter {
         return true;
     }
 
+    //todo 本方法主要是为表达式模式 SQL92 服务的（tag模式在isMatchedByConsumeQueue方法过滤）
     @Override
     public boolean isMatchedByCommitLog(ByteBuffer msgBuffer, Map<String, String> properties) {
-        if (subscriptionData == null) {
+        if (subscriptionData == null) {//如果订阅信息为空，返回 true
             return true;
         }
 
-        if (subscriptionData.isClassFilterMode()) {
+        if (subscriptionData.isClassFilterMode()) { //如果是类过滤模式，返回 true
             return true;
         }
 
-        if (ExpressionType.isTagType(subscriptionData.getExpressionType())) {
+        if (ExpressionType.isTagType(subscriptionData.getExpressionType())) { //如果是 TAG 模式，返回true
             return true;
         }
 
         ConsumerFilterData realFilterData = this.consumerFilterData;
         Map<String, String> tempProperties = properties;
 
-        // no expression
+
         if (realFilterData == null || realFilterData.getExpression() == null
             || realFilterData.getCompiledExpression() == null) {
             return true;
         }
 
+        //如果订阅消息的 TAG hashcodes 集合中包含消息的 tag sCode ，返回 true
         if (tempProperties == null && msgBuffer != null) {
             tempProperties = MessageDecoder.decodeProperties(msgBuffer);
         }

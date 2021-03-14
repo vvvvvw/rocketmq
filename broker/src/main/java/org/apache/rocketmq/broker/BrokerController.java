@@ -868,6 +868,7 @@ public class BrokerController {
             @Override
             public void run() {
                 try {
+                    //每隔10s 向ns发送心跳消息
                     BrokerController.this.registerBrokerAll(true, false, brokerConfig.isForceRegister());
                 } catch (Throwable e) {
                     log.error("registerBrokerAll Exception", e);

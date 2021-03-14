@@ -120,6 +120,7 @@ public abstract class RebalanceImpl {
     }
 
     private HashMap<String/* brokerName */, Set<MessageQueue>> buildProcessQueueTableByBrokerName() {
+        //将消息队列按照Broker 组织成 Map<String /*brokerName*/, Set<MessageQueue＞＞ ，方便下一步 向Broker发送锁定消息队列的请求
         HashMap<String, Set<MessageQueue>> result = new HashMap<String, Set<MessageQueue>>();
         for (MessageQueue mq : this.processQueueTable.keySet()) {
             Set<MessageQueue> mqs = result.get(mq.getBrokerName());
@@ -183,6 +184,8 @@ public abstract class RebalanceImpl {
 
             FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInSubscribe(brokerName, MixAll.MASTER_ID, true);
             if (findBrokerResult != null) {
+                //向 Broker ( Master 主节点）发送锁定消息队列，该方法返回成功被当前消费者
+                //锁定的消息消费队列
                 LockBatchRequestBody requestBody = new LockBatchRequestBody();
                 requestBody.setConsumerGroup(this.consumerGroup);
                 requestBody.setClientId(this.mQClientFactory.getClientId());
@@ -199,11 +202,15 @@ public abstract class RebalanceImpl {
                                 log.info("the message queue locked OK, Group: {} {}", this.consumerGroup, mq);
                             }
 
+                            //将成功锁定的消息消费队列相对应的处理队列设置为锁定状态
                             processQueue.setLocked(true);
+                            //更新加锁时间
                             processQueue.setLastLockTimestamp(System.currentTimeMillis());
                         }
                     }
                     for (MessageQueue mq : mqs) {
+                        //遍历当前处理队列中的消息消费队列，如果当前消费者不持有该消息队列的锁
+                        //将处理队列锁状态设置为 false ，暂停该消息消费队列的消息拉取与消息消费
                         if (!lockOKMQSet.contains(mq)) {
                             ProcessQueue processQueue = this.processQueueTable.get(mq);
                             if (processQueue != null) {

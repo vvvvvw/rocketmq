@@ -64,15 +64,19 @@ public class ProcessQueue {
     private volatile boolean consuming = false;
     private volatile long msgAccCnt = 0;
 
+    //判断锁是否过期 ，锁超时时间 默认为 30s。可以通过系统参数 rocketmq.client.rebalance.lockMaxLiveTime 来设置
     public boolean isLockExpired() {
         return (System.currentTimeMillis() - this.lastLockTimestamp) > REBALANCE_LOCK_MAX_LIVE_TIME;
     }
 
+    //判断 PullMessageService 是否空 闲， 默认 120s ，通过系统参数 rocketmq.client.pull.pullMaxldleTime 来设置
     public boolean isPullExpired() {
         return (System.currentTimeMillis() - this.lastPullTimestamp) > PULL_MAX_IDLE_TIME;
     }
 
     /**
+     * 移除消费超时的消息，默认从获取到consumer端开始超过 15 分钟未消费的消息（消息获取到consumer端的时候会把当前时间设置在msg属性中）将
+     * 发送会broker，并延迟 3个级别
      * @param pushConsumer
      */
     public void cleanExpiredMsg(DefaultMQPushConsumer pushConsumer) {
@@ -125,6 +129,8 @@ public class ProcessQueue {
         }
     }
 
+
+    //添加消息， PullMessageService 拉取消息后，先调用该方法将消息添加到ProcessQueue
     public boolean putMessage(final List<MessageExt> msgs) {
         boolean dispatchToConsume = false;
         try {
@@ -166,6 +172,7 @@ public class ProcessQueue {
         return dispatchToConsume;
     }
 
+    //获取当前processqueue中 最后一条消息与第一条消息的偏移量
     public long getMaxSpan() {
         try {
             this.lockTreeMap.readLock().lockInterruptibly();
@@ -275,6 +282,7 @@ public class ProcessQueue {
                 for (MessageExt msg : this.consumingMsgOrderlyTreeMap.values()) {
                     msgSize.addAndGet(0 - msg.getBody().length);
                 }
+                //将该批消息从 msgTreeMapTemp 中移除
                 this.consumingMsgOrderlyTreeMap.clear();
                 if (offset != null) {
                     return offset + 1;

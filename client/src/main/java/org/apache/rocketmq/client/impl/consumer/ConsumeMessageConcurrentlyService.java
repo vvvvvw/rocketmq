@@ -287,6 +287,9 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
                 break;
             case CLUSTERING:
                 List<MessageExt> msgBackFailed = new ArrayList<MessageExt>(consumeRequest.getMsgs().size());
+
+                //消息消费成功：由于 ackIndex=consumeRequest.getMsgs().size()-1,所以 i=ackIndex+1 等于 consumeRequest.getMsgs().size()，所以并不会执行 sendMessageBack
+                //消息消费失败：ackindex为-1，把重试消息（延迟级别可以自定义，默认不增加延迟级别）发送回broker；如果发送失败，则直接将发送失败的消息再次封装为 ConsumeRequest ，然后延迟5s重新消费
                 for (int i = ackIndex + 1; i < consumeRequest.getMsgs().size(); i++) {
                     MessageExt msg = consumeRequest.getMsgs().get(i);
                     boolean result = this.sendMessageBack(msg, context);

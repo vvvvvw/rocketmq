@@ -36,7 +36,7 @@ public class PullRequest {
         this.requestCommand = requestCommand;
         this.clientChannel = clientChannel;
         this.timeoutMillis = timeoutMillis;
-        this.suspendTimestamp = suspendTimestamp;
+        this.suspendTimestamp = suspendTimestamp; //开始挂起的时间
         this.pullFromThisOffset = pullFromThisOffset;
         this.subscriptionData = subscriptionData;
         this.messageFilter = messageFilter;

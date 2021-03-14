@@ -268,8 +268,10 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                 return;
             }
         } else {
+            //如果消息处理队列未被锁定，则延迟 3s 后再将 PullRequest 对象放入到拉取任务中，
+            //如果该处 队列是第一次拉取 ，则 先计算拉取偏移量，然后 向消息服务端拉取消息
             if (processQueue.isLocked()) {
-                if (!pullRequest.isLockedFirst()) {
+                if (!pullRequest.isLockedFirst()) { //该队列是第一次拉取 ，则 先从broker拉取队列消息偏移量
                     final long offset = this.rebalanceImpl.computePullFromWhere(pullRequest.getMessageQueue());
                     boolean brokerBusy = offset < pullRequest.getNextOffset();
                     log.info("the first time to pull message, so fix offset from broker. pullRequest: {} NewOffset: {} brokerBusy: {}",
@@ -298,6 +300,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
 
         final long beginTimestamp = System.currentTimeMillis();
 
+        //回调接口
         PullCallback pullCallback = new PullCallback() {
             @Override
             public void onSuccess(PullResult pullResult) {
@@ -824,6 +827,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         }
     }
 
+    //获取需要订阅的主题 并构建成SubscriptionData对象设置到 Rebalancelmpl.subscriptionInner 字段中
     private void copySubscription() throws MQClientException {
         try {
             Map<String, String> sub = this.defaultMQPushConsumer.getSubscription();
@@ -878,6 +882,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
 
     public void subscribe(String topic, String subExpression) throws MQClientException {
         try {
+            //消费者订阅消息主题与消息过滤表达式 构建订阅信息并加入到 Rebalancelmpl中，以便 Rebalancelmpl 进行消息队列负载
             SubscriptionData subscriptionData = FilterAPI.buildSubscriptionData(this.defaultMQPushConsumer.getConsumerGroup(),
                 topic, subExpression);
             this.rebalanceImpl.getSubscriptionInner().put(topic, subscriptionData);

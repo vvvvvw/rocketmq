@@ -84,6 +84,7 @@ public class NamesrvController {
 
         this.registerProcessor();
 
+        //NameServer 每隔 10s 扫描一次 Broker， 移除处于不激活状态的 Broker。如果连续 120s 没 有收到心跳包， NameServer 将移除该 Broker 的路由信息同时关闭 Socket 连
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -92,6 +93,7 @@ public class NamesrvController {
             }
         }, 5, 10, TimeUnit.SECONDS);
 
+        //每隔 10 分钟打印一次 KV 配置
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -100,6 +102,7 @@ public class NamesrvController {
             }
         }, 1, 10, TimeUnit.MINUTES);
 
+        //如果开启tls，则启动定时任务 每隔500ms定时查看证书文件是否改变，如果改变的话就通知监听器重新加载ssl上下文(通过比较文件byte的hash)
         if (TlsSystemConfig.tlsMode != TlsMode.DISABLED) {
             // Register a listener to reload SslContext
             try {

@@ -688,6 +688,8 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             null).setResponseCode(ClientErrorCode.NOT_FOUND_TOPIC_EXCEPTION);
     }
 
+    //查找主题的路由信息的方法，如果生产者 缓存了 topic的路由信息，如果该路由信息中包含了消息队列，则直接返回该路由信息，如果没有缓存
+    //或没有包含消息队列， 则向 NameServer 查询该 topic 路由信息。如果最终未找到路由信息，则抛出异常 无法找到主题相关路由信息异常。
     private TopicPublishInfo tryToFindTopicPublishInfo(final String topic) {
         TopicPublishInfo topicPublishInfo = this.topicPublishInfoTable.get(topic);
         if (null == topicPublishInfo || !topicPublishInfo.ok()) {
@@ -870,6 +872,8 @@ public class DefaultMQProducerImpl implements MQProducerInner {
 
                 if (this.hasSendMessageHook()) {
                     context.setSendResult(sendResult);
+                    //：如果注册了消息发送 函数，执行 after 逻辑 意，就 消息发 中发
+                    //RemotingException MQBrokerException InterruptedException 执行
                     this.executeSendMessageHookAfter(context);
                 }
 

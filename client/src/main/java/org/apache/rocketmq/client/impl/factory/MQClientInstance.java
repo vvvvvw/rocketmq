@@ -179,7 +179,9 @@ public class MQClientInstance {
         } else {
             List<QueueData> qds = route.getQueueDatas();
             Collections.sort(qds);
+            //循环遍历路由 信息 QueueData
             for (QueueData qd : qds) {
+                //如果队列 没有写权限 或者 如果brokers列表中没有master节点信息，则继续遍历下 一个QueueData；否则
                 if (PermName.isWriteable(qd.getPerm())) {
                     BrokerData brokerData = null;
                     for (BrokerData bd : route.getBrokerDatas()) {
@@ -197,6 +199,7 @@ public class MQClientInstance {
                         continue;
                     }
 
+                    //根据写队列个数，创建QuueMessage列表，queueId字段为序号
                     for (int i = 0; i < qd.getWriteQueueNums(); i++) {
                         MessageQueue mq = new MessageQueue(topic, qd.getBrokerName(), i);
                         info.getMessageQueueList().add(mq);
@@ -649,7 +652,9 @@ public class MQClientInstance {
                     }
                     if (topicRouteData != null) {
                         TopicRouteData old = this.topicRouteTable.get(topic);
+                        //如果路由信息找到，与本地缓存中的路由信息进行对比，判断路由信息是否发生了改变
                             boolean changed = topicRouteDataIsChange(old, topicRouteData);
+                            // 如果未发生变化，则直接返回 false
                         if (!changed) {
                             changed = this.isNeedUpdateTopicRouteInfo(topic);
                         } else {
@@ -663,6 +668,7 @@ public class MQClientInstance {
                                 this.brokerAddrTable.put(bd.getBrokerName(), bd.getBrokerAddrs());
                             }
 
+                            //更新topic信息
                             // Update Pub info
                             {
                                 TopicPublishInfo publishInfo = topicRouteData2TopicPublishInfo(topic, topicRouteData);
@@ -994,6 +1000,7 @@ public class MQClientInstance {
         this.rebalanceService.wakeup();
     }
 
+    //遍历 已注册的消费者， 对消费者 执行doRebalance() 方法
     public void doRebalance() {
         for (Map.Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
             MQConsumerInner impl = entry.getValue();

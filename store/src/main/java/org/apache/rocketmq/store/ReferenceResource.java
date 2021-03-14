@@ -46,6 +46,7 @@ public abstract class ReferenceResource {
             this.firstShutdownTimestamp = System.currentTimeMillis();
             this.release();
         } else if (this.getRefCount() > 0) {
+            //如果 第一次删除的时间 到当前 大于destroyMapedFileIntervalForcibly，则将引用计数设置为 (-当前引用计数-1000)
             if ((System.currentTimeMillis() - this.firstShutdownTimestamp) >= intervalForcibly) {
                 this.refCount.set(-1000 - this.getRefCount());
                 this.release();

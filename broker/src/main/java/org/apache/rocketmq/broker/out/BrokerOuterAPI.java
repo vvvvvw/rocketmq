@@ -125,19 +125,26 @@ public class BrokerOuterAPI {
 
         final List<RegisterBrokerResult> registerBrokerResultList = Lists.newArrayList();
         List<String> nameServerAddressList = this.remotingClient.getNameServerAddressList();
+        //遍历 ns列表， Broker 消息服务器依次向 ns发送心跳包
         if (nameServerAddressList != null && nameServerAddressList.size() > 0) {
 
             final RegisterBrokerRequestHeader requestHeader = new RegisterBrokerRequestHeader();
-            requestHeader.setBrokerAddr(brokerAddr);
-            requestHeader.setBrokerId(brokerId);
-            requestHeader.setBrokerName(brokerName);
-            requestHeader.setClusterName(clusterName);
-            requestHeader.setHaServerAddr(haServerAddr);
+            requestHeader.setBrokerAddr(brokerAddr);//broker 地址
+            requestHeader.setBrokerId(brokerId);//brokerld,O:Master：，大于 0: Slave
+            requestHeader.setBrokerName(brokerName);//broker 名称
+            requestHeader.setClusterName(clusterName);//集群名称
+            requestHeader.setHaServerAddr(haServerAddr);//master 地址，初次请求时该值为空， slave向Nameserver 注册后返回
             requestHeader.setCompressed(compressed);
 
             RegisterBrokerBody requestBody = new RegisterBrokerBody();
+            /*
+            主题配置topicConfigWrapper：内部封装的是TopicConfigManager 中的 topicConfigTable ，内部存储的是 Broker 启动时默认的 Topic,
+            MixAll.SELF_TEST_TOPIC、MixAll.DEFAULT_TOPIC ( AutoCreateTopic-Enable=true ), MixAll.BENCHMARK_TOPIC、MixAll.OFFSET_MOVED_EVENT、
+            BrokerConfig#brokerClusterName、BrokerConfig#brokerName。Broker
+            Topic 默认存储在$｛Rocket_Home}/store/confg/topic.json
+             */
             requestBody.setTopicConfigSerializeWrapper(topicConfigWrapper);
-            requestBody.setFilterServerList(filterServerList);
+            requestBody.setFilterServerList(filterServerList); //消息过滤服务器列表
             final byte[] body = requestBody.encode(compressed);
             final int bodyCrc32 = UtilAll.crc32(body);
             requestHeader.setBodyCrc32(bodyCrc32);

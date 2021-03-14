@@ -314,7 +314,11 @@ public class MappedFile extends ReferenceResource {
         return this.getFlushedPosition();
     }
 
+    //执行提交操作， commitLeastPages 为本次提交最小的页数，如果待提交数据不满
+    //commitLeastPages ，则不执行本次提交操作，待下次提交。 writeBuffer 如果为空，直接返回
+    //wrotePosition 指针 ，无须执行 commit 操作
     public int commit(final int commitLeastPages) {
+        //commit 操作主体 writeBuffer，如果writeBuffer 如果为空，直接返回wrotePosition 指针 ，无须执行 commit 操作
         if (writeBuffer == null) {
             //no need to commit data to file channel, so just regard wrotePosition as committedPosition.
             return this.wrotePosition.get();
@@ -355,6 +359,11 @@ public class MappedFile extends ReferenceResource {
         }
     }
 
+    //判断是否执行 flush 操作 如果文件己满返回 true ；如果 flushLeastPages 大于 0,
+    //则比较 当前可读的位置（如果没有使用直接内存：写入到文件的位置（包括flush和没有flush的）；如果使用了直接内存：当前commit的位置）与上一次flush的指针（flushedPosition)
+    //的差值，除以 OS_PAGE_SIZE 得到当前脏页的数量，如果大于 flushLeastPages 则返回
+    //true ；如果 flushLeastPages等于0 表示只要存在脏页就提交
+
     private boolean isAbleToFlush(final int flushLeastPages) {
         int flush = this.flushedPosition.get();
         int write = getReadPosition();
@@ -370,6 +379,10 @@ public class MappedFile extends ReferenceResource {
         return write > flush;
     }
 
+    //判断是否执行 commit 操作 如果文件己满返回 true ；如果 commitLeastPages 大于 0,
+    //则比较 wrotePosition（当前 writeBuffer 的写指针）与上一次提交的指针（committedPosition)
+    //的差值，除以 OS_PAGE_SIZE 得到当前脏页的数量，如果大于 commitLeastPages 则返回
+    //true ；如果 commitLeastPages小于0 表示只要存在脏页就提交
     protected boolean isAbleToCommit(final int commitLeastPages) {
         int flush = this.committedPosition.get();
         int write = this.wrotePosition.get();

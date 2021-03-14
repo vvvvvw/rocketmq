@@ -35,12 +35,16 @@ public class MappedFileQueue {
 
     private static final int DELETE_FILES_BATCH_MAX = 10;
 
+    //存储目录
     private final String storePath;
 
+    //单个文件的存储大小
     private final int mappedFileSize;
 
+    //MappedFile 文件集合
     private final CopyOnWriteArrayList<MappedFile> mappedFiles = new CopyOnWriteArrayList<MappedFile>();
 
+    //创建 MappedFile 服务类
     private final AllocateMappedFileService allocateMappedFileService;
 
     //当前刷盘指针， 表示该指针之前的所有数据全部持久化到磁盘
@@ -307,7 +311,7 @@ public class MappedFileQueue {
         return -1;
     }
 
-    //获取存储文件的最大读偏移量。 返回最后一个 MappedFile 文件的 fileFromOffset 加上 MappedFile 文件当前的写指针
+    //获取存储文件的最大读偏移量。 返回最后一个 MappedFile 文件的 fileFromOffset 加上 MappedFile 文件当前的读指针
     public long getMaxOffset() {
         MappedFile mappedFile = getLastMappedFile();
         if (mappedFile != null) {
@@ -352,22 +356,29 @@ public class MappedFileQueue {
         if (null == mfs)
             return 0;
 
-        int mfsLength = mfs.length - 1;
+        int mfsLength = mfs.length - 1; //
         int deleteCount = 0;
         List<MappedFile> files = new ArrayList<MappedFile>();
         if (null != mfs) {
+            //从第一个文件遍历到最后第二个文件
             for (int i = 0; i < mfsLength; i++) {
                 MappedFile mappedFile = (MappedFile) mfs[i];
+                //获取文件能存活到 哪个时间（文件的最后一次更新时间＋文件存活时间（默认 72 小时）））
                 long liveMaxTimestamp = mappedFile.getLastModifiedTimestamp() + expiredTime;
+                //如果当前已经超过了文件的存活时间 或者 需要立即强制删除（配置了 允许强制删除 且 磁盘使用率超过了指定的阈值rocketmq.broker.diskSpaceWarningLevelRatio或rocketmq.broker.diskSpaceCleanForciblyRatio）
                 if (System.currentTimeMillis() >= liveMaxTimestamp || cleanImmediately) {
+                    //执行 MappedFile#destory方法，
                     if (mappedFile.destroy(intervalForcibly)) {
+                        //如果文件删除成功，则把文件缓存加入到删除列表中
                         files.add(mappedFile);
                         deleteCount++;
 
+                        //如果当前待删除文件数量大于 10，则清除缓存
                         if (files.size() >= DELETE_FILES_BATCH_MAX) {
                             break;
                         }
 
+                        //如果物理文件删除的时间间隔 大于0，则sleep deleteFilesInterval时间
                         if (deleteFilesInterval > 0 && (i + 1) < mfsLength) {
                             try {
                                 Thread.sleep(deleteFilesInterval);
@@ -384,6 +395,7 @@ public class MappedFileQueue {
             }
         }
 
+        //清除被删除文件的mappedfile
         deleteExpiredFile(files);
 
         return deleteCount;

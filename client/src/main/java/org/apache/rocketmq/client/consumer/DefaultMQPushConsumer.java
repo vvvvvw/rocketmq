@@ -76,6 +76,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      *
      * See <a href="http://rocketmq.apache.org/docs/core-concept/">here</a> for further discussion.
      */
+    //消费者所属组
     private String consumerGroup;
 
     /**
@@ -90,6 +91,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      *
      * This field defaults to clustering.
      */
+    //消息消费模式，分为集群模式、广播模式，默认为集群模式
     private MessageModel messageModel = MessageModel.CLUSTERING;
 
     /**
@@ -164,7 +166,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     /**
      * Minimum consumer thread number
      */
-    //，消息者最新线程数
+    //，消息者最小线程数
     private int consumeThreadMin = 20;
 
     /**

@@ -665,7 +665,9 @@ public class CommitLog {
             final GroupCommitService service = (GroupCommitService) this.flushCommitLogService;
             if (messageExt.isWaitStoreMsgOK()) {
                 GroupCommitRequest request = new GroupCommitRequest(result.getWroteOffset() + result.getWroteBytes());
+                // 构建GroupCommitRequest 步任务并提交到 GroupCommitRequest
                 service.putRequest(request);
+                //等待同步刷盘任务完成，如果超时则返回刷盘错误， 刷盘成功后正常返 回给调用方
                 boolean flushOK = request.waitForFlush(this.defaultMessageStore.getMessageStoreConfig().getSyncFlushTimeout());
                 if (!flushOK) {
                     log.error("do groupcommit, wait for flush failed, topic: " + messageExt.getTopic() + " tags: " + messageExt.getTags()
@@ -979,11 +981,15 @@ public class CommitLog {
             CommitLog.log.info(this.getServiceName() + " service started");
 
             while (!this.isStopped()) {
+                //是否 一定要满足500ms的间隔时间才进行flush？还是说 可以被消息存储操作实时触发
                 boolean flushCommitLogTimed = CommitLog.this.defaultMessageStore.getMessageStoreConfig().isFlushCommitLogTimed();
 
+                //flush定时job的时间间隔：500ms
                 int interval = CommitLog.this.defaultMessageStore.getMessageStoreConfig().getFlushIntervalCommitLog();
+                //最少flush的页数：4
                 int flushPhysicQueueLeastPages = CommitLog.this.defaultMessageStore.getMessageStoreConfig().getFlushCommitLogLeastPages();
 
+                //如果两次flush之间的时间间隔超过10s，则一定会执行flush
                 int flushPhysicQueueThoroughInterval =
                     CommitLog.this.defaultMessageStore.getMessageStoreConfig().getFlushCommitLogThoroughInterval();
 
@@ -998,6 +1004,7 @@ public class CommitLog {
                 }
 
                 try {
+                    ////是否 一定要满足500ms的间隔时间才进行flush？还是说 可以被消息存储操作实时触发
                     if (flushCommitLogTimed) {
                         Thread.sleep(interval);
                     } else {

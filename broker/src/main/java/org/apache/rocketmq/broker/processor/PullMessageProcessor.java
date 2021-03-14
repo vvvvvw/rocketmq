@@ -103,7 +103,8 @@ public class PullMessageProcessor implements NettyRequestProcessor {
             return response;
         }
 
-        SubscriptionGroupConfig subscriptionGroupConfig =
+        SubscriptionGroupConfig
+                subscriptionGroupConfig =
             this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(requestHeader.getConsumerGroup());
         if (null == subscriptionGroupConfig) {
             response.setCode(ResponseCode.SUBSCRIPTION_GROUP_NOT_EXIST);
@@ -150,9 +151,11 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         ConsumerFilterData consumerFilterData = null;
         if (hasSubscriptionFlag) {
             try {
+                //根据订阅 消息构建消息拉取标记，设置subExpression、classFilter 等与消息过滤相关
                 subscriptionData = FilterAPI.build(
                     requestHeader.getTopic(), requestHeader.getSubscription(), requestHeader.getExpressionType()
                 );
+                //如果不是tag过滤，那就只有 sql92过滤，提前准备好解析器
                 if (!ExpressionType.isTagType(subscriptionData.getExpressionType())) {
                     consumerFilterData = ConsumerFilterManager.build(
                         requestHeader.getTopic(), requestHeader.getConsumerGroup(), requestHeader.getSubscription(),
@@ -224,15 +227,21 @@ public class PullMessageProcessor implements NettyRequestProcessor {
             return response;
         }
 
+        //根据主题、消息过滤表达式构建订阅消息实体，如果不是 TAG 模式，构建过滤数据 ConsumeFilterData
         MessageFilter messageFilter;
         if (this.brokerController.getBrokerConfig().isFilterSupportRetry()) {
+            //构建消息过滤对象， ExpressionForRetryMessageFiltr，支持对 重试主题的过滤
+            // ExpressionMessageFilter ，不支持对重试主题的属性过滤 ，也就 如果是 tag 模式，执
+            //isMatchedByCommitLog 方法将直接返回 true
             messageFilter = new ExpressionForRetryMessageFilter(subscriptionData, consumerFilterData,
                 this.brokerController.getConsumerFilterManager());
         } else {
+            //ExpressionMessageFilter ，不支持对重试主题的属性过滤，也就是 如果是 tag 模式，执行isMatchedByCommitLog 方法将直接返回 true
             messageFilter = new ExpressionMessageFilter(subscriptionData, consumerFilterData,
                 this.brokerController.getConsumerFilterManager());
         }
 
+        //根据偏移量拉取消息后，首先根据 ConsumeQueue 条目进行消息过滤，如果不匹配则直接跳过该条消息，继续拉取下一条消息
         final GetMessageResult getMessageResult =
             this.brokerController.getMessageStore().getMessage(requestHeader.getConsumerGroup(), requestHeader.getTopic(),
                 requestHeader.getQueueId(), requestHeader.getQueueOffset(), requestHeader.getMaxMsgNums(), messageFilter);
@@ -242,10 +251,10 @@ public class PullMessageProcessor implements NettyRequestProcessor {
             responseHeader.setMinOffset(getMessageResult.getMinOffset());
             responseHeader.setMaxOffset(getMessageResult.getMaxOffset());
 
-            if (getMessageResult.isSuggestPullingFromSlave()) {
+            if (getMessageResult.isSuggestPullingFromSlave()) { //系统繁忙，则设置读指定的从（brokerid为通过命令行设置，默认为1）
                 responseHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getWhichBrokerWhenConsumeSlowly());
             } else {
-                responseHeader.setSuggestWhichBrokerId(MixAll.MASTER_ID);
+                responseHeader.setSuggestWhichBrokerId(MixAll.MASTER_ID); //系统不繁忙，读主
             }
 
             switch (this.brokerController.getMessageStoreConfig().getBrokerRole()) {
@@ -253,7 +262,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                 case SYNC_MASTER:
                     break;
                 case SLAVE:
-                    if (!this.brokerController.getBrokerConfig().isSlaveReadEnable()) {
+                    if (!this.brokerController.getBrokerConfig().isSlaveReadEnable()) { //如果当前是slave且BrokerConfig.slaveReadEnable为false，则还是读主
                         response.setCode(ResponseCode.PULL_RETRY_IMMEDIATELY);
                         responseHeader.setSuggestWhichBrokerId(MixAll.MASTER_ID);
                     }
@@ -262,14 +271,14 @@ public class PullMessageProcessor implements NettyRequestProcessor {
 
             if (this.brokerController.getBrokerConfig().isSlaveReadEnable()) {
                 // consume too slow ,redirect to another machine
-                if (getMessageResult.isSuggestPullingFromSlave()) {
+                if (getMessageResult.isSuggestPullingFromSlave()) { //如果BrokerConfig.slaveReadEnable为true 且 繁忙，则设置读指定的从（brokerid为通过命令行设置，默认为1）
                     responseHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getWhichBrokerWhenConsumeSlowly());
                 }
                 // consume ok
-                else {
+                else { //如果BrokerConfig.slaveReadEnable为false 且 繁忙，则设置读指定的brokerid（brokerid也是通过命令行设置，默认为主）
                     responseHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getBrokerId());
                 }
-            } else {
+            } else { //如果不繁忙，则还是读主
                 responseHeader.setSuggestWhichBrokerId(MixAll.MASTER_ID);
             }
 
@@ -343,6 +352,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
 
                         break;
                     case ResponseCode.PULL_NOT_FOUND:
+
                         if (!brokerAllowSuspend) {
 
                             context.setCommercialRcvStats(BrokerStatsManager.StatsType.RCV_EPOLLS);
@@ -404,7 +414,8 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                     }
                     break;
                 case ResponseCode.PULL_NOT_FOUND:
-
+                    //brokerAllowSuspend: Broker 端是否支持挂起，处理消息拉取时默认传入的都是 true,
+                    //表示支持如果未找到消息则挂起，如果该参数为false ，未找到消息时直接返回客户端消息未找到（在超时的时候传入false）
                     if (brokerAllowSuspend && hasSuspendFlag) {
                         long pollingTimeMills = suspendTimeoutMillisLong;
                         if (!this.brokerController.getBrokerConfig().isLongPollingEnable()) {

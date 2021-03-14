@@ -99,10 +99,13 @@ public class FilterServerManager {
     }
 
     public void registerFilterServer(final Channel channel, final String filterServerAddr) {
+        //先从 filterSerserTable 中以网络通道为 key获取FilterServerlnfo
         FilterServerInfo filterServerInfo = this.filterServerTable.get(channel);
         if (filterServerInfo != null) {
+            //如果不等于空 ，则更新一下lastUpdateTimestamp为当前时间
             filterServerInfo.setLastUpdateTimestamp(System.currentTimeMillis());
         } else {
+            //否则创建一个新的 FilterServerlnfo对象并加入到 filterServrTable 路由表
             filterServerInfo = new FilterServerInfo();
             filterServerInfo.setFilterServerAddr(filterServerAddr);
             filterServerInfo.setLastUpdateTimestamp(System.currentTimeMillis());
@@ -145,7 +148,9 @@ public class FilterServerManager {
     }
 
     static class FilterServerInfo {
+        //filterServer 服务器地址
         private String filterServerAddr;
+        //filterServer上次发送心跳包时间
         private long lastUpdateTimestamp;
 
         public String getFilterServerAddr() {
