@@ -98,13 +98,14 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
                 messageExt.setTopic(NamespaceUtil
                     .withoutNamespace(messageExt.getTopic(), this.mqClientFactory.getClientConfig().getNamespace()));
             }
+            //事务id就是 UNIQ_KEY 属性
             String transactionId = messageExt.getProperty(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX);
             if (null != transactionId && !"".equals(transactionId)) {
                 messageExt.setTransactionId(transactionId);
             }
             final String group = messageExt.getProperty(MessageConst.PROPERTY_PRODUCER_GROUP);
             if (group != null) {
-                MQProducerInner producer = this.mqClientFactory.selectProducer(group);
+                MQProducerInner producer = this.mqClientFactory.selectProducer(group); //筛选生产者
                 if (producer != null) {
                     final String addr = RemotingHelper.parseChannelRemoteAddr(ctx.channel());
                     producer.checkTransactionState(addr, messageExt, requestHeader);

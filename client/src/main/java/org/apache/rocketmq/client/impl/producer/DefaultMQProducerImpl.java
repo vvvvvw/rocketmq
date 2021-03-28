@@ -145,6 +145,9 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         if (producer.getExecutorService() != null) {
             this.checkExecutor = producer.getExecutorService();
         } else {
+            //core size:(TransactionMQProducer.checkThreadPoolMinSize,默认为1)
+            //max size:(TransactionMQProducer.checkThreadPoolMaxSize,默认为1)
+            //队列长度：（TransactionMQProducer.checkRequestHoldMax,默认为2000）
             this.checkRequestQueue = new LinkedBlockingQueue<Runnable>(producer.getCheckRequestHoldMax());
             this.checkExecutor = new ThreadPoolExecutor(
                 producer.getCheckThreadPoolMinSize(),
@@ -318,6 +321,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                     LocalTransactionState localTransactionState = LocalTransactionState.UNKNOW;
                     Throwable exception = null;
                     try {
+                        //获取事务当前状态
                         if (transactionCheckListener != null) {
                             localTransactionState = transactionCheckListener.checkLocalTransactionState(message);
                         } else if (transactionListener != null) {
@@ -378,6 +382,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 }
 
                 try {
+                    //发送事务状态给broker（oneway模式）
                     DefaultMQProducerImpl.this.mQClientFactory.getMQClientAPIImpl().endTransactionOneway(brokerAddr, thisHeader, remark,
                         3000);
                 } catch (Exception e) {
@@ -386,6 +391,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             }
         };
 
+        //把事务回查逻辑 提交到 线程池中
         this.checkExecutor.submit(request);
     }
 
@@ -1213,6 +1219,8 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         Validators.checkMessage(msg, this.defaultMQProducer);
 
         SendResult sendResult = null;
+        //：首先为消息添加属性， TRAN_MSG（表示消息为 prepare 消息）和PGROUP （表示消息所属消息生产者组，设置消息生产者组的目的是在查询事务消息本地事务状态时，从
+        //该生产者组中随机选择 一个消息生产者即可，然后通过同步调用方式向 RocketMQ 发送消息）
         MessageAccessor.putProperty(msg, MessageConst.PROPERTY_TRANSACTION_PREPARED, "true");
         MessageAccessor.putProperty(msg, MessageConst.PROPERTY_PRODUCER_GROUP, this.defaultMQProducer.getProducerGroup());
         try {
@@ -1223,8 +1231,12 @@ public class DefaultMQProducerImpl implements MQProducerInner {
 
         LocalTransactionState localTransactionState = LocalTransactionState.UNKNOW;
         Throwable localException = null;
+        //根据消息发送结果执行相应的操作
         switch (sendResult.getSendStatus()) {
             case SEND_OK: {
+                // 如果消息发送成功， 则执行 TransactionListener.excuteLocalTransaction 方法，该
+                //方法的职责是记录事务消息的本地事务状态，例如可以通过将消息唯一ID存储在数据中，并且该方法与业务代码处于同一个事务，
+                // 与 业务事务要么一起成功，要么一起失败
                 try {
                     if (sendResult.getTransactionId() != null) {
                         msg.putUserProperty("__transactionId__", sendResult.getTransactionId());
@@ -1298,6 +1310,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             id = MessageDecoder.decodeMessageId(sendResult.getMsgId());
         }
         String transactionId = sendResult.getTransactionId();
+        //根据消息所属的消息队列获取broker的ip和端口信息，然后发送事务结束命令
         final String brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(sendResult.getMessageQueue().getBrokerName());
         EndTransactionRequestHeader requestHeader = new EndTransactionRequestHeader();
         requestHeader.setTransactionId(transactionId);
@@ -1316,6 +1329,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 break;
         }
 
+        //根据事务结果发送相应的事务结束命令(oneway方式)
         requestHeader.setProducerGroup(this.defaultMQProducer.getProducerGroup());
         requestHeader.setTranStateTableOffset(sendResult.getQueueOffset());
         requestHeader.setMsgId(sendResult.getMsgId());

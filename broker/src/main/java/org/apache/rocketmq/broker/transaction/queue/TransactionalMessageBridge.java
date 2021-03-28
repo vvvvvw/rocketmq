@@ -191,6 +191,10 @@ public class TransactionalMessageBridge {
     }
 
     private MessageExtBrokerInner parseHalfMessageInner(MessageExtBrokerInner msgInner) {
+        //1.将消息的原主题和原消息消费队列备份到消息属性中，然后将消息主题变更为RMQ_SYS_TRANS_HALF_TOPIC,队列id变更为0
+        //2.把消息像普通消息一样存储在 RMQ_SYS_TRANS_HALF_TOPIC的0号队列中（也就是说，事务消息在未提交之前并不会存入消息原有主题，自然
+        //也不会被消费者消费消费， RocketMQ采用定时任务（单独的线程）去消费该主题。然后将该消息在满足特定条件下恢复消息主题，进而
+        //被消费者消费。
         MessageAccessor.putProperty(msgInner, MessageConst.PROPERTY_REAL_TOPIC, msgInner.getTopic());
         MessageAccessor.putProperty(msgInner, MessageConst.PROPERTY_REAL_QUEUE_ID,
             String.valueOf(msgInner.getQueueId()));

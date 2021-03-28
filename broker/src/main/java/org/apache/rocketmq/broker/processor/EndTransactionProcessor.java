@@ -65,6 +65,7 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
         if (requestHeader.getFromTransactionCheck()) {
             switch (requestHeader.getCommitOrRollback()) {
                 case MessageSysFlag.TRANSACTION_NOT_TYPE: {
+                    //如果是 "TRANSACTION_NOT_TYPE"，则不进行任何操作，等待事务反查的时候确定事务状态
                     LOGGER.warn("Check producer[{}] transaction state, but it's pending status."
                             + "RequestHeader: {} Remark: {}",
                         RemotingHelper.parseChannelRemoteAddr(ctx.channel()),
@@ -73,6 +74,7 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
                     return null;
                 }
 
+                //
                 case MessageSysFlag.TRANSACTION_COMMIT_TYPE: {
                     LOGGER.warn("Check producer[{}] transaction state, the producer commit the message."
                             + "RequestHeader: {} Remark: {}",
@@ -96,6 +98,7 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
             }
         } else {
             switch (requestHeader.getCommitOrRollback()) {
+                //如果是 "TRANSACTION_NOT_TYPE"，则不进行任何操作，等待事务反查的时候确定事务状态
                 case MessageSysFlag.TRANSACTION_NOT_TYPE: {
                     LOGGER.warn("The producer[{}] end transaction in sending message,  and it's pending status."
                             + "RequestHeader: {} Remark: {}",
@@ -121,19 +124,27 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
                     return null;
             }
         }
+        //根据本地事务的结果 执行相应的操作
         OperationResult result = new OperationResult();
         if (MessageSysFlag.TRANSACTION_COMMIT_TYPE == requestHeader.getCommitOrRollback()) {
+            //如果是commit操作
+            //先从结束事务请求中获取消息的物理偏移量（ commitlogOffset ），然后从commitlog中获取到指定消息
             result = this.brokerController.getTransactionalMessageService().commitMessage(requestHeader);
             if (result.getResponseCode() == ResponseCode.SUCCESS) {
                 RemotingCommand res = checkPrepareMessage(result.getPrepareMessage(), requestHeader);
                 if (res.getCode() == ResponseCode.SUCCESS) {
+                    //恢复消息的主题和消费队列，构建新的消息对象
                     MessageExtBrokerInner msgInner = endMessageTransaction(result.getPrepareMessage());
                     msgInner.setSysFlag(MessageSysFlag.resetTransactionValue(msgInner.getSysFlag(), requestHeader.getCommitOrRollback()));
                     msgInner.setQueueOffset(requestHeader.getTranStateTableOffset());
                     msgInner.setPreparedTransactionOffset(requestHeader.getCommitLogOffset());
                     msgInner.setStoreTimestamp(result.getPrepareMessage().getStoreTimestamp());
+                    //将消息再次存储在 commitlog 文件中，此时存储的是业务方发送的消息主题和消息队列
                     RemotingCommand sendResult = sendFinalMessage(msgInner);
                     if (sendResult.getCode() == ResponseCode.SUCCESS) {
+                        //消息存储成功后，删除 prepare 消息（注意：实现方法并不是真正的删除，而是将 prepare
+                        //息存储到 RMQ_SYS_TRANS_OP_HALF_TOPIC 主题(队列id还是0)中，表示该事务消息（ prepare 状态的
+                        //消息）已经处理过（提交或回滚），为未处理的事务进行事务回查提供查找依据）
                         this.brokerController.getTransactionalMessageService().deletePrepareMessage(result.getPrepareMessage());
                     }
                     return sendResult;
@@ -145,6 +156,9 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
             if (result.getResponseCode() == ResponseCode.SUCCESS) {
                 RemotingCommand res = checkPrepareMessage(result.getPrepareMessage(), requestHeader);
                 if (res.getCode() == ResponseCode.SUCCESS) {
+                    //与提交的唯一差别是无须将消息恢复原主题，直接删除 prepare 消息即可，
+                    //同样是将预处理消息存储在 RMQ_SYS_TRANS_OP_HALF_TOPIC 主题(队列id还是0)中，表示已处理过
+                    //该消息
                     this.brokerController.getTransactionalMessageService().deletePrepareMessage(result.getPrepareMessage());
                 }
                 return res;

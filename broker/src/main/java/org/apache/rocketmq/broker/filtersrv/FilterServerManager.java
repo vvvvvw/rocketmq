@@ -39,7 +39,8 @@ public class FilterServerManager {
 
     public static final long FILTER_SERVER_MAX_IDLE_TIME_MILLS = 30000;
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
-    private final ConcurrentMap<Channel, FilterServerInfo> filterServerTable =
+    /**/
+    private final ConcurrentMap<Channel/*channel*/, FilterServerInfo> filterServerTable =
         new ConcurrentHashMap<Channel, FilterServerInfo>(16);
     private final BrokerController brokerController;
 
@@ -69,10 +70,12 @@ public class FilterServerManager {
             this.brokerController.getBrokerConfig().getFilterServerNums() - this.filterServerTable.size();
         String cmd = this.buildStartCommand();
         for (int i = 0; i < more; i++) {
+            //利用 Runtime.getRuntime（） 直接执行要运行的shell 脚本
             FilterServerUtil.callShell(cmd, log);
         }
     }
 
+    //：构建启动命令
     private String buildStartCommand() {
         String config = "";
         if (BrokerStartup.configFile != null) {

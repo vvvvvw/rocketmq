@@ -607,6 +607,7 @@ public class MQClientInstance {
         }
     }
 
+    //将消息端订阅信息中的类过滤模式的过滤类源码上传到 FilterServer
     private void uploadFilterClassSource() {
         Iterator<Entry<String, MQConsumerInner>> it = this.consumerTable.entrySet().iterator();
         while (it.hasNext()) {
@@ -793,6 +794,7 @@ public class MQClientInstance {
             && topicRouteData.getFilterServerTable() != null && !topicRouteData.getFilterServerTable().isEmpty()) {
             Iterator<Entry<String, List<String>>> it = topicRouteData.getFilterServerTable().entrySet().iterator();
             while (it.hasNext()) {
+                //：遍历主题路由表 中的 filterServerTable ，向 缓存中所有的 filterServer 传递消息过滤代码
                 Entry<String, List<String>> next = it.next();
                 List<String> value = next.getValue();
                 for (final String fsAddr : value) {
@@ -1061,6 +1063,13 @@ public class MQClientInstance {
         return null;
     }
 
+    /**
+     *
+     * @param brokerName Broker 名称
+     * @param brokerId Broker Id
+     * @param onlyThisBroker 是否必须返回 brokerId 的Broker 对应的服务器信息
+     * @return
+     */
     public FindBrokerResult findBrokerAddressInSubscribe(
         final String brokerName,
         final long brokerId,
@@ -1070,12 +1079,16 @@ public class MQClientInstance {
         boolean slave = false;
         boolean found = false;
 
+        //从brokerAddrTable中根据 brokerName 获取所有的 Broker 信息
         HashMap<Long/* brokerId */, String/* address */> map = this.brokerAddrTable.get(brokerName);
         if (map != null && !map.isEmpty()) {
             brokerAddr = map.get(brokerId);
             slave = brokerId != MixAll.MASTER_ID;
             found = brokerAddr != null;
 
+            //根据 brokerId 从Broker 主从缓存表中获取指定 Broker 名称， 如果根据 brokerId没有
+            //找到相关条目，此时若 onlyThisBroker 为false ，则随机返回 Broker 中任意一个 Broker ，否
+            //则返回 null
             if (!found && !onlyThisBroker) {
                 Entry<Long, String> entry = map.entrySet().iterator().next();
                 brokerAddr = entry.getValue();
@@ -1085,6 +1098,8 @@ public class MQClientInstance {
         }
 
         if (found) {
+            //组装 FindBrokerResult 时， 需要设置是否是 slave 这个属性。如果 brokerld=O，表示
+            //返回的 Broker 是主节点，否则返回的是从节点
             return new FindBrokerResult(brokerAddr, slave, findBrokerVersion(brokerName, brokerAddr));
         }
 

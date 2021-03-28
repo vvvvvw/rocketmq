@@ -39,6 +39,7 @@ public class TransactionalMessageCheckService extends ServiceThread {
     @Override
     public void run() {
         log.info("Start transaction check service thread!");
+        //执行时间间隔（BrokerConfig.transactionCheckInterval，默认1分钟）
         long checkInterval = brokerController.getBrokerConfig().getTransactionCheckInterval();
         while (!this.isStopped()) {
             this.waitForRunning(checkInterval);
@@ -48,7 +49,10 @@ public class TransactionalMessageCheckService extends ServiceThread {
 
     @Override
     protected void onWaitEnd() {
+        //事务的回查时间（BrokerConfig.transactionTimeOut,默认6s）,只有当消息的存储时间加上过期时间大于系统当前时间时，才对消息执行 事务状态回查 ，否则在下一次周期中执行事务回查操作
         long timeout = brokerController.getBrokerConfig().getTransactionTimeOut();
+        //事务回查最大检测次数（BrokerConfig.transactionCheckMax,默认15次），如果超过最大检测次数还是无法获知消息的事务状态， RocketMQ 将不会继续对消息进行事务状态回查，而是直接丢弃即相当于
+        //回滚事务
         int checkMax = brokerController.getBrokerConfig().getTransactionCheckMax();
         long begin = System.currentTimeMillis();
         log.info("Begin to check prepare message, begin time:{}", begin);

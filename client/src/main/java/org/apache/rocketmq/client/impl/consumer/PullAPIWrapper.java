@@ -114,6 +114,8 @@ public class PullAPIWrapper {
         return pullResult;
     }
 
+    //消息消费拉取线程 PullMessageService 根据 PullRequest 请求从主服务器拉取消息后会返回下一次建议拉取的 brokerId ，消
+    //息消费者线程在收到消息后，会根据主服务器的建议拉取 brokerId 来更新 pullFrom WhichNodeTable
     public void updatePullFromWhichNode(final MessageQueue mq, final long brokerId) {
         AtomicLong suggest = this.pullFromWhichNodeTable.get(mq);
         if (null == suggest) {
